@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import "./style.css";
+import Title from "./Title";
+import Instructions from "./Instructions";
 import FileInput from "./FileInput";
 import ProcessButton from "./ProcessButton";
 import DownloadButton from "./DownloadButton";
@@ -68,6 +70,9 @@ function App() {
 
   return (
     <div>
+      <Title />
+      <Instructions />
+      <br />
       <FileInput onFileChange={handleFileChange} />
       <ProcessButton onClick={handleProcessFile} />
       {timeRemaining > 0 && <TimeRemaining time={timeRemaining} />}

@@ -1,10 +1,27 @@
 body {
-  background-color: #333;
+  background-color: #2B3B6E;
   color: #fff;
-  padding: 1em;
+  padding-left: 10px;
+  font-family: "Mulish", sans-serif;
 }
 
-.dark-mode {
-  background-color: #333;
+.big-title {
+  color: #ff5300!important;
+  padding: 5px;
+  font-family: "Mulish", sans-serif!important;
+}
+
+.paragraph-text {
   color: #fff;
+  padding: 0px!important;
+  font-family: "Noto Sans Mono"!important;
+}
+
+.instructions-box {
+  border: 1px solid!important;
+  border-color:black!important;
+  background-color: #495682!important;
+  box-sizing: border-box;
+  width: 650px;
+  padding: 10px
 }
