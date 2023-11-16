@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import axios from "axios";
+import { Parser } from "json2csv";
 import "./style.css";
 import Title from "./Title";
 import Instructions from "./Instructions";
@@ -8,21 +10,61 @@ import DownloadButton from "./DownloadButton";
 import TimeRemaining from "./TimeRemaining";
 import "./App.css";
 
-function processCsv(csv) {
-  // simple sample script for testing
-  // split the CSV data into lines
-  const lines = csv.split("\n");
-  // split each line into columns
-  const data = lines.map((line) => line.split(","));
-  // return the processed data
+const API_ENDPOINT = "https://api.chainalysis.com/api/risk/v2/entities/";
+const SERVER_ADDRESS = "http://localhost:3001/api/entities/";
+
+async function processCsv(csv, apiKey) {
+  const lines = csv.split("\n").slice(1); // skip the first line
+  const data = await Promise.all(
+    lines.map(async (line) => {
+      const columns = line.split(",");
+      const userId = columns[0]; // the user-id is the first column
+      const address = columns[1]; // the address is the second column
+      const postResponse = await axios.post(SERVER_ADDRESS, {
+        url: API_ENDPOINT,
+        data: { address: address },
+        headers: { Token: apiKey, "Content-Type": "application/json" },
+      });
+      const getResponse = await axios.get(`${SERVER_ADDRESS}${address}`, {
+        headers: { Token: apiKey, "Content-Type": "application/json" },
+      });
+      const responseData = { ...getResponse.data, ...postResponse.data };
+      // Flatten the JSON object
+      const flattenedData = {};
+      for (let key in responseData) {
+        if (responseData[key] && typeof responseData[key] === "object") {
+          if (key === "cluster") {
+            flattenedData["cluster.name"] = responseData[key].name;
+            flattenedData["cluster.category"] = responseData[key].category;
+          } else {
+            flattenedData[key] = responseData[key];
+          }
+        } else {
+          flattenedData[key] = responseData[key];
+        }
+      }
+      return { userId, address, ...flattenedData };
+    })
+  );
+  // TODO: Remove `cluster` phantom category
+
+  // Convert JSON to CSV
+  const parser = new Parser();
+  const csvData = parser.parse(data);
+
+  // Create a downloadable link for the new CSV file
+  const blob = new Blob([csvData], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "results.csv";
+  link.click();
+
   return data;
 }
 
-// function to convert the processed data to CSV format
 function convertToCsv(data) {
-  // join the rows with newline characters
   const csv = data.map((row) => row.join(",")).join("\n");
-  // return the CSV data
   return csv;
 }
 
@@ -33,6 +75,10 @@ function App() {
   const [timeRemaining, setTimeRemaining] = useState(0);
   // state to store the processed data
   const [processedData, setProcessedData] = useState(null);
+  // state to store the output CSV file
+  const [outputCsv, setOutputCsv] = useState(null);
+  // state to store the API key
+  const [apiKey, setApiKey] = useState("");
 
   //function tom handle the CSV file selected by the user
   const handleFileChange = (event) => {
@@ -40,38 +86,43 @@ function App() {
   };
 
   //function to start processing the CSV file
-  const handleProcessFile = () => {
+  const handleProcessFile = async () => {
     const reader = new FileReader();
     reader.onload = async (event) => {
-      //process the CSV file using a script
-      const data = processCsv(event.target.result);
-      // set the processed data in state
-      setProcessedData(data);
-      // update the processing time remaining
-      setTimeRemaining(5);
+      const csv = event.target.result;
+      const lines = csv.split("\n");
+      setTimeRemaining(lines.length * 2);
+      const processedData = await processCsv(csv, apiKey);
+      const newOutputCsv = convertToCsv(processedData);
+      setOutputCsv(newOutputCsv);
+      setProcessedData(processedData);
     };
     reader.readAsText(file);
   };
 
   // function to download the processed data s a CSV
   const handleDownload = () => {
-    const csv = convertToCsv(processedData);
-    // create a Blob object containing the CSV data
-    const blob = new Blob([csv], { type: "text/csv" });
-    // create a temp URL for the blob obj
-    const url = URL.createObjectURL(blob);
-    // create a link element to trigger the download
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", "processed.csv");
-    // simulate a clock on the link to trigger the download
-    link.click();
+    const element = document.createElement("a");
+    const file = new Blob([outputCsv], { type: "text/csv" });
+    element.href = URL.createObjectURL(file);
+    element.download = "results.csv";
+    document.body.appendChild(element);
+    element.click();
   };
 
   return (
     <div>
       <Title />
       <Instructions />
+      <br />
+      <label>
+        Enter your API Key:
+        <input
+          type="text"
+          value={apiKey}
+          onChange={(e) => setApiKey(e.target.value)}
+        />
+      </label>
       <br />
       <FileInput onFileChange={handleFileChange} />
       <ProcessButton onClick={handleProcessFile} />

@@ -21,3 +21,6 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Not sure if this needs to be .env
+bastion-host-key.pem
